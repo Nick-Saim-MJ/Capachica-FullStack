@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../modules/profile/bindings/profile_binding.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_screen.dart';
 import '../modules/home/bindings/home_binding.dart';
@@ -251,7 +252,8 @@ class AppPages {
     ),
     GetPage(
       name: '/profile',
-      page: () => ProfileScreen(),
+      page: () => ProfileView(),
+      binding: ProfileBinding(),
     ),
   ];
 }

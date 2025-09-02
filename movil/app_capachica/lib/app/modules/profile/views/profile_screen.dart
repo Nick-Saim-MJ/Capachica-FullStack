@@ -1,181 +1,114 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+import '../controllers/profile_controller.dart';
 
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
+class ProfileView extends StatelessWidget {
+  final ProfileController controller = Get.find<ProfileController>();
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _birthDateController = TextEditingController();
-  final _countryController = TextEditingController();
-  final _addressController = TextEditingController();
-  String? _gender;
-  File? _profileImage;
+  ProfileView({Key? key}) : super(key: key);
 
-  @override
-  void initState() {
-    super.initState();
-    // Aquí puedes cargar los datos actuales del usuario si están disponibles
-    // Por ejemplo, desde un AuthService o similar
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _birthDateController.dispose();
-    _countryController.dispose();
-    _addressController.dispose();
-    super.dispose();
-  }
+  final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _profileImage = File(image.path);
-      });
-    }
-  }
-
-  Future<void> _pickBirthDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      _birthDateController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-    }
-  }
-
-  void _saveProfile() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Aquí deberías guardar los cambios en el backend o localmente
-      Get.snackbar('Perfil actualizado', 'Tus datos han sido guardados correctamente', backgroundColor: Colors.green, colorText: Colors.white);
+    try {
+      final pickedFile =
+      await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      if (pickedFile != null) {
+        controller.setNewProfilePhoto(File(pickedFile.path));
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'No se pudo seleccionar la imagen: $e',
+          snackPosition: SnackPosition.BOTTOM);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Perfil'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
+        title: const Text('Perfil de Usuario'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final profile = controller.profile.value;
+        if (profile == null) {
+          return const Center(child: Text('No se encontró el perfil.'));
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
-                      child: _profileImage == null ? const Icon(Icons.person, size: 60, color: Colors.grey) : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.edit, color: Colors.white, size: 20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              Obx(() => CircleAvatar(
+                radius: 60,
+                backgroundImage: controller.newProfilePhoto.value != null
+                    ? FileImage(controller.newProfilePhoto.value!)
+                    : (profile.fotoPerfilUrl != null
+                    ? NetworkImage(profile.fotoPerfilUrl!)
+                    : const AssetImage('assets/default_avatar.png')
+                as ImageProvider),
+              )),
+              TextButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.photo_camera),
+                label: const Text('Cambiar foto de perfil'),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                initialValue: controller.name.value,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                onChanged: (val) => controller.name.value = val,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                initialValue: controller.email.value,
+                decoration: const InputDecoration(labelText: 'Correo electrónico'),
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (val) => controller.email.value = val,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                initialValue: controller.phone.value,
+                decoration: const InputDecoration(labelText: 'Teléfono'),
+                keyboardType: TextInputType.phone,
+                onChanged: (val) => controller.phone.value = val,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                initialValue: controller.country.value,
+                decoration: const InputDecoration(labelText: 'País'),
+                onChanged: (val) => controller.country.value = val,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                initialValue: controller.address.value,
+                decoration: const InputDecoration(labelText: 'Dirección'),
+                onChanged: (val) => controller.address.value = val,
               ),
               const SizedBox(height: 30),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre completo',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) => (value == null || value.isEmpty) ? 'Ingresa tu nombre' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _birthDateController,
-                readOnly: true,
-                onTap: _pickBirthDate,
-                decoration: const InputDecoration(
-                  labelText: 'Fecha de nacimiento',
-                  prefixIcon: Icon(Icons.calendar_today_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: _gender,
-                items: const [
-                  DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
-                  DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
-                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-                ],
-                onChanged: (value) => setState(() => _gender = value),
-                decoration: const InputDecoration(
-                  labelText: 'Género',
-                  prefixIcon: Icon(Icons.wc_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _countryController,
-                decoration: const InputDecoration(
-                  labelText: 'País',
-                  prefixIcon: Icon(Icons.public_outlined),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Dirección',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                onPressed: _saveProfile,
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar cambios'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+              Obx(() => ElevatedButton(
+                onPressed: controller.isUpdating.value
+                    ? null
+                    : () => controller.updateProfile(),
+                child: controller.isUpdating.value
+                    ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+                    : const Text('Actualizar perfil'),
+              )),
             ],
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
-} 
+}
