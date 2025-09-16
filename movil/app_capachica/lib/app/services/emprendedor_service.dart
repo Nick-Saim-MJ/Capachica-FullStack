@@ -1,11 +1,18 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../data/models/emprendedor_model.dart';
-import '../core/config/backend_config.dart';
-import '../core/exceptions/api_exception.dart';
+import 'package:app_capachica/app/core/compatibility/response_adapter.dart';
+import 'package:flutter/foundation.dart';
 
-class EmprendedorService {
-  final String baseUrl = BackendConfig.getBaseUrl();
+import '../data/models/emprendedor_model.dart';
+import '../data/models/emprendedor_resumen_model.dart';
+import '../core/config/app_config.dart';
+import '../core/compatibility/api_client.dart';
+import '../core/compatibility/request_builder.dart';
+import '../core/cache/cache_service.dart';
+import '../core/services/base_service.dart';
+
+class EmprendedorService extends BaseService {
+  final _httpClient = CompatibilityApiClient.instance;
+  final _requestBuilder = RequestBuilder();
+  final _cacheService = CacheService.instance;
 
   // Datos de prueba para modo test
   static const List<Map<String, dynamic>> _testEmprendedores = [
@@ -13,531 +20,571 @@ class EmprendedorService {
       'id': 1,
       'nombre': 'Casa Hospedaje Samary',
       'tipo_servicio': 'Alojamiento',
-      'descripcion': 'Casa hospedaje familiar que ofrece habitaciones cómodas con vista al lago Titicaca y experiencia de turismo vivencial.',
+      'descripcion':
+      'Casa hospedaje familiar que ofrece habitaciones cómodas con vista al lago Titicaca y experiencia de turismo vivencial.',
       'ubicacion': 'Comunidad Llachón, a 200m del muelle principal',
       'telefono': '951222333',
       'email': 'samary.llachon@gmail.com',
-      'pagina_web': 'https://samaryllachon.com',
-      'horario_atencion': 'Todos los días: 7:00 am - 10:00 pm',
-      'precio_rango': 'S/. 50 - S/. 100',
-      'metodos_pago': '["Efectivo","Transferencia","Yape"]',
-      'capacidad_aforo': 12,
-      'numero_personas_atiende': 3,
-      'comentarios_resenas': 'Excelente servicio, habitaciones limpias y comida deliciosa. Muy recomendado.',
-      'imagenes': '["samary1.jpg","samary2.jpg","samary3.jpg"]',
-      'categoria': 'Alojamiento',
-      'certificaciones': 'TRC MINCETUR',
-      'idiomas_hablados': 'Español, Inglés básico, Quechua',
-      'opciones_acceso': 'A pie, en bote',
+      'imagen': 'samary1.jpg',
       'estado': true,
       'fecha_creacion': '2024-01-15T10:30:00Z',
-      'fecha_actualizacion': '2024-01-20T14:45:00Z',
+      'total_servicios': 3,
+      'precio_minimo': 50.0,
     },
     {
       'id': 2,
       'nombre': 'Restaurante El Sabor del Lago',
       'tipo_servicio': 'Restaurante',
-      'descripcion': 'Restaurante especializado en pescados frescos del lago Titicaca y platos típicos de la región.',
+      'descripcion':
+      'Restaurante especializado en pescados frescos del lago Titicaca y platos típicos de la región.',
       'ubicacion': 'Plaza principal de Capachica',
       'telefono': '951444555',
       'email': 'saborlago@hotmail.com',
-      'pagina_web': 'https://elsabordellago.com',
-      'horario_atencion': 'Lunes a Domingo: 11:00 am - 9:00 pm',
-      'precio_rango': 'S/. 15 - S/. 45',
-      'metodos_pago': '["Efectivo","Tarjeta","Yape"]',
-      'capacidad_aforo': 50,
-      'numero_personas_atiende': 8,
-      'comentarios_resenas': 'La mejor trucha del lago, ambiente familiar y precios justos.',
-      'imagenes': '["restaurante1.jpg","restaurante2.jpg"]',
-      'categoria': 'Restaurante',
-      'certificaciones': 'Salud DIGESA',
-      'idiomas_hablados': 'Español, Quechua',
-      'opciones_acceso': 'A pie, en taxi',
+      'imagen': 'restaurante1.jpg',
       'estado': true,
       'fecha_creacion': '2024-01-10T08:15:00Z',
-      'fecha_actualizacion': '2024-01-18T16:20:00Z',
+      'total_servicios': 5,
+      'precio_minimo': 15.0,
     },
     {
       'id': 3,
       'nombre': 'Aventuras Titicaca Tours',
       'tipo_servicio': 'Turismo',
-      'descripcion': 'Agencia de turismo que ofrece tours personalizados por las islas del lago Titicaca y experiencias culturales.',
+      'descripcion':
+      'Agencia de turismo que ofrece tours personalizados por las islas del lago Titicaca y experiencias culturales.',
       'ubicacion': 'Oficina en el muelle principal',
       'telefono': '951666777',
       'email': 'info@aventurastiticaca.com',
-      'pagina_web': 'https://aventurastiticaca.com',
-      'horario_atencion': 'Lunes a Domingo: 6:00 am - 8:00 pm',
-      'precio_rango': 'S/. 80 - S/. 200',
-      'metodos_pago': '["Efectivo","Transferencia","Tarjeta"]',
-      'capacidad_aforo': 20,
-      'numero_personas_atiende': 5,
-      'comentarios_resenas': 'Guías expertos, experiencias únicas y muy organizados.',
-      'imagenes': '["tours1.jpg","tours2.jpg","tours3.jpg"]',
-      'categoria': 'Turismo',
-      'certificaciones': 'MINCETUR',
-      'idiomas_hablados': 'Español, Inglés, Francés',
-      'opciones_acceso': 'A pie, en bote',
+      'imagen': 'tours1.jpg',
       'estado': true,
       'fecha_creacion': '2024-01-05T12:00:00Z',
-      'fecha_actualizacion': '2024-01-22T09:30:00Z',
+      'total_servicios': 8,
+      'precio_minimo': 80.0,
     },
     {
       'id': 4,
       'nombre': 'Artesanías Llachón',
       'tipo_servicio': 'Artesanía',
-      'descripcion': 'Taller de artesanías tradicionales con textiles y cerámicas típicas de la región.',
+      'descripcion':
+      'Taller de artesanías tradicionales con textiles y cerámicas típicas de la región.',
       'ubicacion': 'Comunidad Llachón, calle principal',
       'telefono': '951888999',
       'email': 'artesaniasllachon@gmail.com',
-      'pagina_web': null,
-      'horario_atencion': 'Lunes a Sábado: 8:00 am - 6:00 pm',
-      'precio_rango': 'S/. 20 - S/. 150',
-      'metodos_pago': '["Efectivo","Yape"]',
-      'capacidad_aforo': 15,
-      'numero_personas_atiende': 4,
-      'comentarios_resenas': 'Productos auténticos y de alta calidad, muy buena atención.',
-      'imagenes': '["artesania1.jpg","artesania2.jpg"]',
-      'categoria': 'Artesanía',
-      'certificaciones': 'MINCETUR',
-      'idiomas_hablados': 'Español, Quechua',
-      'opciones_acceso': 'A pie',
+      'imagen': 'artesania1.jpg',
       'estado': true,
       'fecha_creacion': '2024-01-12T10:45:00Z',
-      'fecha_actualizacion': '2024-01-19T15:15:00Z',
+      'total_servicios': 12,
+      'precio_minimo': 20.0,
     },
     {
       'id': 5,
       'nombre': 'Transporte Lacustre Capachica',
       'tipo_servicio': 'Transporte',
-      'descripcion': 'Servicio de transporte en botes tradicionales por el lago Titicaca.',
+      'descripcion':
+      'Servicio de transporte en botes tradicionales por el lago Titicaca.',
       'ubicacion': 'Muelle principal de Capachica',
       'telefono': '951111222',
       'email': 'transporte@capachica.com',
-      'pagina_web': null,
-      'horario_atencion': 'Todos los días: 5:00 am - 7:00 pm',
-      'precio_rango': 'S/. 10 - S/. 30',
-      'metodos_pago': '["Efectivo"]',
-      'capacidad_aforo': 25,
-      'numero_personas_atiende': 6,
-      'comentarios_resenas': 'Servicio puntual y seguro, botes bien mantenidos.',
-      'imagenes': '["transporte1.jpg"]',
-      'categoria': 'Transporte',
-      'certificaciones': 'DICAPI',
-      'idiomas_hablados': 'Español, Quechua',
-      'opciones_acceso': 'A pie',
+      'imagen': 'transporte1.jpg',
       'estado': true,
       'fecha_creacion': '2024-01-08T07:30:00Z',
-      'fecha_actualizacion': '2024-01-21T11:00:00Z',
+      'total_servicios': 2,
+      'precio_minimo': 10.0,
     },
   ];
 
-  static const List<String> _testCategorias = [
-    'Alojamiento',
-    'Restaurante',
-    'Turismo',
-    'Artesanía',
-    'Transporte',
-    'Otros'
-  ];
+  // =========================
+  // GET /api/emprendedores
+  // =========================
+  Future<PaginatedResponse<EmprendedorResumen>> getEmprendedores({
+    int page = 1,
+    int perPage = 20,
+    String? query,
+    String? categoria,
+    String? ubicacion,
+    bool? estado,
+    String? sortBy,
+    String? sortOrder = 'asc',
+  }) async {
+    final result =
+    await executeWithStates<PaginatedResponse<EmprendedorResumen>>(
+            () async {
+          // Modo de prueba
+          if (AppConfig.isTestMode) {
+            debugPrint(
+                '[EmprendedorService] (test) getEmprendedores con filtros: q=$query, cat=$categoria, ubi=$ubicacion, estado=$estado');
 
-  // Método auxiliar para extraer datos de la respuesta paginada
-  List<dynamic> _extractDataFromResponse(String responseBody) {
-    final dynamic response = json.decode(responseBody);
-    
-    // Si la respuesta es directamente una lista
-    if (response is List) {
-      return response;
-    }
-    
-    // Si la respuesta es un Map
-    if (response is Map<String, dynamic>) {
-      // Verificar si la respuesta tiene estructura paginada
-      if (response.containsKey('data') && response['data'] is Map) {
-        final dataMap = response['data'] as Map<String, dynamic>;
-        if (dataMap.containsKey('data') && dataMap['data'] is List) {
-          return dataMap['data'] as List<dynamic>;
-        }
-      }
-      
-      // Si no tiene estructura paginada, intentar usar directamente
-      if (response.containsKey('data') && response['data'] is List) {
-        return response['data'] as List<dynamic>;
-      }
-    }
-    
-    throw ApiException(message: 'Formato de respuesta no válido');
-  }
+            await Future.delayed(const Duration(milliseconds: 500));
+            List<Map<String, dynamic>> filteredData = List.from(_testEmprendedores);
 
-  // Obtener lista completa de emprendedores
-  Future<List<Emprendedor>> getEmprendedores() async {
-    try {
-      print('🔄 EmprendedorService: Obteniendo lista de emprendedores...');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Usando datos de prueba');
-        await Future.delayed(const Duration(milliseconds: 500)); // Simular delay de red
-        
-        final emprendedores = _testEmprendedores
-            .map((json) => Emprendedor.fromJson(json))
-            .toList();
-        
-        print('✅ EmprendedorService: ${emprendedores.length} emprendedores obtenidos (modo prueba)');
-        return emprendedores;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
+            if (query != null && query.isNotEmpty) {
+              final q = query.toLowerCase();
+              filteredData = filteredData.where((e) {
+                return e['nombre'].toLowerCase().contains(q) ||
+                    e['tipo_servicio'].toLowerCase().contains(q) ||
+                    e['ubicacion'].toLowerCase().contains(q) ||
+                    (e['descripcion']?.toLowerCase().contains(q) ?? false);
+              }).toList();
+            }
 
-      print('📡 EmprendedorService: Response status: ${response.statusCode}');
-      print('📡 EmprendedorService: Response body: ${response.body}');
+            if (categoria != null && categoria.isNotEmpty) {
+              filteredData = filteredData
+                  .where((e) =>
+              e['tipo_servicio'].toLowerCase() == categoria.toLowerCase())
+                  .toList();
+            }
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final emprendedores = data.map((json) => Emprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${emprendedores.length} emprendedores obtenidos');
-        return emprendedores;
-      } else {
-        throw ApiException(message: 'Error al obtener emprendedores: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error obteniendo emprendedores: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
-  }
+            if (ubicacion != null && ubicacion.isNotEmpty) {
+              filteredData = filteredData
+                  .where((e) =>
+                  e['ubicacion'].toLowerCase().contains(ubicacion.toLowerCase()))
+                  .toList();
+            }
 
-  // Buscar emprendedores por texto
-  Future<List<Emprendedor>> searchEmprendedores(String query) async {
-    try {
-      print('🔍 EmprendedorService: Buscando emprendedores con query: "$query"');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Búsqueda en modo prueba');
-        await Future.delayed(const Duration(milliseconds: 300));
-        
-        final lowercaseQuery = query.toLowerCase();
-        final results = _testEmprendedores.where((emprendedor) {
-          return emprendedor['nombre'].toLowerCase().contains(lowercaseQuery) ||
-                 emprendedor['tipo_servicio'].toLowerCase().contains(lowercaseQuery) ||
-                 emprendedor['ubicacion'].toLowerCase().contains(lowercaseQuery) ||
-                 (emprendedor['descripcion']?.toLowerCase().contains(lowercaseQuery) ?? false);
-        }).map((json) => Emprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${results.length} resultados encontrados (modo prueba)');
-        return results;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/search?query=${Uri.encodeComponent(query)}'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
+            if (estado != null) {
+              filteredData =
+                  filteredData.where((e) => e['estado'] == estado).toList();
+            }
 
-      print('📡 EmprendedorService: Search response status: ${response.statusCode}');
+            final startIndex = (page - 1) * perPage;
+            final endIndex = (startIndex + perPage).clamp(0, filteredData.length);
+            final paginatedData = filteredData.sublist(startIndex, endIndex);
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final emprendedores = data.map((json) => Emprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${emprendedores.length} resultados encontrados');
-        return emprendedores;
-      } else {
-        throw ApiException(message: 'Error en búsqueda: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error en búsqueda: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
-  }
+            final list = paginatedData
+                .map((json) => EmprendedorResumen.fromJson(json))
+                .toList();
 
-  // Filtrar emprendedores por categoría
-  Future<List<Emprendedor>> getEmprendedoresByCategoria(String categoria) async {
-    try {
-      print('🏷️ EmprendedorService: Filtrando emprendedores por categoría: "$categoria"');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Filtro por categoría en modo prueba');
-        await Future.delayed(const Duration(milliseconds: 300));
-        
-        final results = _testEmprendedores.where((emprendedor) {
-          return emprendedor['categoria'].toLowerCase() == categoria.toLowerCase();
-        }).map((json) => Emprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${results.length} emprendedores en categoría "$categoria" (modo prueba)');
-        return results;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/categoria/${Uri.encodeComponent(categoria)}'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 EmprendedorService: Categoria filter response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final emprendedores = data.map((json) => Emprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${emprendedores.length} emprendedores en categoría "$categoria"');
-        return emprendedores;
-      } else {
-        throw ApiException(message: 'Error al filtrar por categoría: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error filtrando por categoría: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
-  }
-
-  // Obtener detalle de un emprendedor específico
-  Future<Emprendedor> getEmprendedorById(int id) async {
-    try {
-      print('👤 EmprendedorService: Obteniendo detalle del emprendedor ID: $id');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Obteniendo detalle en modo prueba');
-        await Future.delayed(const Duration(milliseconds: 400));
-        
-        final emprendedorData = _testEmprendedores.firstWhere(
-          (emprendedor) => emprendedor['id'] == id,
-          orElse: () => throw ApiException(message: 'Emprendedor no encontrado'),
-        );
-        
-        final emprendedor = Emprendedor.fromJson(emprendedorData);
-        print('✅ EmprendedorService: Detalle del emprendedor obtenido: ${emprendedor.nombre} (modo prueba)');
-        return emprendedor;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 EmprendedorService: Detail response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        
-        // Verificar si la respuesta tiene estructura con 'data'
-        final data = responseData.containsKey('data') ? responseData['data'] : responseData;
-        final emprendedor = Emprendedor.fromJson(data);
-        
-        print('✅ EmprendedorService: Detalle del emprendedor obtenido: ${emprendedor.nombre}');
-        return emprendedor;
-      } else {
-        throw ApiException(message: 'Error al obtener detalle: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error obteniendo detalle: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
-  }
-
-  // Obtener relaciones de un emprendedor
-  Future<List<RelacionEmprendedor>> getEmprendedorRelaciones(int id) async {
-    try {
-      print('🔗 EmprendedorService: Obteniendo relaciones del emprendedor ID: $id');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Obteniendo relaciones en modo prueba');
-        await Future.delayed(const Duration(milliseconds: 300));
-        
-        // Datos de prueba para relaciones
-        final testRelaciones = [
-          {
-            'id': 1,
-            'tipo': 'red_social',
-            'valor': 'facebook.com/emprendedor$id',
-            'fecha_creacion': '2024-01-15T10:30:00Z',
-          },
-          {
-            'id': 2,
-            'tipo': 'whatsapp',
-            'valor': '+51 951222333',
-            'fecha_creacion': '2024-01-15T10:30:00Z',
-          },
-        ];
-        
-        final relaciones = testRelaciones.map((json) => RelacionEmprendedor.fromJson(json)).toList();
-        print('✅ EmprendedorService: ${relaciones.length} relaciones obtenidas (modo prueba)');
-        return relaciones;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/$id/relaciones'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
-
-      print('📡 EmprendedorService: Relaciones response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final relaciones = data.map((json) => RelacionEmprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${relaciones.length} relaciones obtenidas');
-        return relaciones;
-      } else {
-        throw ApiException(message: 'Error al obtener relaciones: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error obteniendo relaciones: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
-  }
-
-  // Obtener servicios de un emprendedor
-  Future<List<ServicioEmprendedor>> getEmprendedorServicios(int id) async {
-    try {
-      print('🛠️ EmprendedorService: Obteniendo servicios del emprendedor ID: $id');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Obteniendo servicios en modo prueba');
-        await Future.delayed(const Duration(milliseconds: 300));
-        
-        // Datos de prueba para servicios
-        final testServicios = [
-          {
-            'id': 1,
-            'nombre': 'Habitación Doble',
-            'descripcion': 'Habitación con vista al lago, baño privado y desayuno incluido',
-            'precio_referencial': 80.0,
-            'ubicacion_referencia': 'Segundo piso',
-            'capacidad': 2,
-            'estado': true,
-            'categorias': [
-              {
-                'id': 1,
-                'nombre': 'Alojamiento',
-                'descripcion': 'Servicios de hospedaje'
-              }
-            ],
-            'horarios': [
-              {
-                'id': 1,
-                'dia_semana': 'Lunes',
-                'hora_inicio': '14:00',
-                'hora_fin': '12:00'
-              },
-              {
-                'id': 2,
-                'dia_semana': 'Martes',
-                'hora_inicio': '14:00',
-                'hora_fin': '12:00'
-              }
-            ]
-          },
-          {
-            'id': 2,
-            'nombre': 'Tour Guiado',
-            'descripcion': 'Recorrido por las islas del lago con guía local',
-            'precio_referencial': 120.0,
-            'ubicacion_referencia': 'Muelle principal',
-            'capacidad': 10,
-            'estado': true,
-            'categorias': [
-              {
-                'id': 2,
-                'nombre': 'Turismo',
-                'descripcion': 'Servicios turísticos'
-              }
-            ],
-            'horarios': [
-              {
-                'id': 3,
-                'dia_semana': 'Lunes',
-                'hora_inicio': '08:00',
-                'hora_fin': '17:00'
-              }
-            ]
+            return PaginatedResponse<EmprendedorResumen>.success(
+              data: list,
+              currentPage: page,
+              totalPages: (filteredData.length / perPage).ceil(),
+              totalItems: filteredData.length,
+              perPage: perPage,
+              hasNextPage: endIndex < filteredData.length,
+              hasPreviousPage: page > 1,
+              message: 'Datos obtenidos en modo prueba',
+              statusCode: 200,
+            );
           }
-        ];
-        
-        final servicios = testServicios.map((json) => ServicioEmprendedor.fromJson(json)).toList();
-        print('✅ EmprendedorService: ${servicios.length} servicios obtenidos (modo prueba)');
-        return servicios;
-      }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/$id/servicios'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
 
-      print('📡 EmprendedorService: Servicios response status: ${response.statusCode}');
+          // Parámetros
+          final searchParams = _requestBuilder.buildSearchParams(query: query);
+          final filterParams = _requestBuilder.buildFilterParams(
+            categoria: categoria,
+            estado: estado?.toString(),
+          );
+          final paginationParams =
+          _requestBuilder.buildPaginationParams(page: page, perPage: perPage);
+          final sortParams =
+          _requestBuilder.buildSortParams(sortBy: sortBy, sortOrder: sortOrder);
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final servicios = data.map((json) => ServicioEmprendedor.fromJson(json)).toList();
-        
-        print('✅ EmprendedorService: ${servicios.length} servicios obtenidos');
-        return servicios;
-      } else {
-        throw ApiException(message: 'Error al obtener servicios: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ EmprendedorService: Error obteniendo servicios: $e');
-      throw ApiException(message: 'Error de conexión: $e');
-    }
+          final queryParams = _requestBuilder.combineParams(
+            _requestBuilder.combineParams(
+              _requestBuilder.combineParams(searchParams, filterParams),
+              paginationParams,
+            ),
+            sortParams,
+          );
+
+          if (ubicacion != null && ubicacion.isNotEmpty) {
+            queryParams['ubicacion'] = ubicacion;
+          }
+
+          final cacheKey =
+              'emprendedores_${page}_${perPage}_${query ?? ''}_${categoria ?? ''}_${ubicacion ?? ''}_${estado ?? ''}_${sortBy ?? ''}_${sortOrder ?? ''}';
+
+          final cached =
+          await _cacheService.getEmprendedoresData<PaginatedResponse<EmprendedorResumen>>(
+            cacheKey,
+                (json) => _parsePaginatedResponse(json),
+          );
+          if (cached != null) {
+            debugPrint('[EmprendedorService] cache hit: $cacheKey');
+            return cached;
+          }
+
+          // Petición
+          final response = await _httpClient.get<List<EmprendedorResumen>>(
+            AppConfig.getEndpoint('emprendedores', 'list'),
+            queryParams: queryParams,
+            fromJson: (json) =>
+                (json as List).map((x) => EmprendedorResumen.fromJson(x)).toList(),
+          );
+
+          if (response.success && response.data != null) {
+            final dataList = response.data!;
+            final totalPages = _calculateTotalPages(dataList.length, perPage);
+            final hasNext = dataList.length >= perPage;
+
+            // Construimos el objeto de negocio…
+            final pageResp = PaginatedResponse<EmprendedorResumen>.success(
+              data: dataList,
+              currentPage: page,
+              totalPages: totalPages,
+              totalItems: dataList.length,
+              perPage: perPage,
+              hasNextPage: hasNext,
+              hasPreviousPage: page > 1,
+              message: response.message,
+              statusCode: response.statusCode,
+            );
+
+            // …y guardamos al cache como Map, no usando toJson inexistente
+            final cacheMap = {
+              'data': dataList.map((e) => e.toJson()).toList(),
+              'currentPage': page,
+              'totalPages': totalPages,
+              'totalItems': dataList.length,
+              'perPage': perPage,
+              'hasNextPage': hasNext,
+              'hasPreviousPage': page > 1,
+              'message': response.message,
+              'statusCode': response.statusCode,
+            };
+            await _cacheService.setEmprendedoresData(cacheKey, cacheMap);
+
+            return pageResp;
+          } else {
+            throw response.message;
+          }
+        });
+
+    if (result == null) throw 'No se recibió respuesta en getEmprendedores';
+    return result;
   }
 
-  // Obtener categorías disponibles
+  // =========================
+  // GET /api/emprendedores/{id}
+  // =========================
+  Future<Emprendedor> getEmprendedor(int id) async {
+    final result = await executeWithStates<Emprendedor>(() async {
+      if (AppConfig.isTestMode) {
+        debugPrint('[EmprendedorService] (test) getEmprendedor $id');
+        await Future.delayed(const Duration(milliseconds: 400));
+
+        final emprendedorData = _testEmprendedores.firstWhere(
+              (e) => e['id'] == id,
+          orElse: () => throw Exception('Emprendedor no encontrado'),
+        );
+
+        final full = {
+          ...emprendedorData,
+          'servicios': [],
+          'relaciones': [],
+        };
+        return Emprendedor.fromJson(full);
+      }
+
+      final cacheKey = 'emprendedor_detail_$id';
+      final cached = await _cacheService.getEmprendedoresData<Emprendedor>(
+        cacheKey,
+            (json) => Emprendedor.fromJson(json),
+      );
+      if (cached != null) {
+        debugPrint('[EmprendedorService] cache hit: $cacheKey');
+        return cached;
+      }
+
+      final response = await _httpClient.get<Emprendedor>(
+        '${AppConfig.getEndpoint('emprendedores', 'detail')}/$id',
+        fromJson: (json) => Emprendedor.fromJson(json),
+      );
+
+      if (response.success && response.data != null) {
+        await _cacheService.setEmprendedoresData(
+            cacheKey, response.data!.toJson());
+        return response.data!;
+      } else {
+        throw response.message;
+      }
+    });
+
+    if (result == null) throw 'No se recibió respuesta en getEmprendedor';
+    return result;
+  }
+
+  // =========================================
+  // GET /api/emprendedores/categoria/{cat}
+  // =========================================
+  Future<PaginatedResponse<EmprendedorResumen>> getEmprendedoresByCategoria(
+      String categoria, {
+        int page = 1,
+        int perPage = 20,
+        String? query,
+        String? ubicacion,
+        bool? estado,
+      }) async {
+    final result =
+    await executeWithStates<PaginatedResponse<EmprendedorResumen>>(
+            () async {
+          if (AppConfig.isTestMode) {
+            debugPrint(
+                '[EmprendedorService] (test) getEmprendedoresByCategoria $categoria');
+
+            await Future.delayed(const Duration(milliseconds: 300));
+            List<Map<String, dynamic>> filtered = _testEmprendedores
+                .where((e) =>
+            e['tipo_servicio'].toLowerCase() == categoria.toLowerCase())
+                .toList();
+
+            if (query != null && query.isNotEmpty) {
+              final q = query.toLowerCase();
+              filtered = filtered.where((e) {
+                return e['nombre'].toLowerCase().contains(q) ||
+                    e['ubicacion'].toLowerCase().contains(q) ||
+                    (e['descripcion']?.toLowerCase().contains(q) ?? false);
+              }).toList();
+            }
+            if (ubicacion != null && ubicacion.isNotEmpty) {
+              filtered = filtered
+                  .where((e) =>
+                  e['ubicacion'].toLowerCase().contains(ubicacion.toLowerCase()))
+                  .toList();
+            }
+            if (estado != null) {
+              filtered = filtered.where((e) => e['estado'] == estado).toList();
+            }
+
+            final startIndex = (page - 1) * perPage;
+            final endIndex = (startIndex + perPage).clamp(0, filtered.length);
+            final pageList = filtered.sublist(startIndex, endIndex);
+
+            final data = pageList
+                .map((json) => EmprendedorResumen.fromJson(json))
+                .toList();
+
+            return PaginatedResponse<EmprendedorResumen>.success(
+              data: data,
+              currentPage: page,
+              totalPages: (filtered.length / perPage).ceil(),
+              totalItems: filtered.length,
+              perPage: perPage,
+              hasNextPage: endIndex < filtered.length,
+              hasPreviousPage: page > 1,
+              message: 'Datos obtenidos en modo prueba',
+              statusCode: 200,
+            );
+          }
+
+          final searchParams = _requestBuilder.buildSearchParams(query: query);
+          final filterParams = _requestBuilder.buildFilterParams(
+            categoria: categoria,
+            estado: estado?.toString(),
+          );
+          final paginationParams =
+          _requestBuilder.buildPaginationParams(page: page, perPage: perPage);
+
+          final queryParams = _requestBuilder.combineParams(
+            _requestBuilder.combineParams(searchParams, filterParams),
+            paginationParams,
+          );
+
+          if (ubicacion != null && ubicacion.isNotEmpty) {
+            queryParams['ubicacion'] = ubicacion;
+          }
+
+          final cacheKey =
+              'emprendedores_categoria_${categoria}_${page}_${perPage}_${query ?? ''}_${ubicacion ?? ''}_${estado ?? ''}';
+
+          final cached =
+          await _cacheService.getEmprendedoresData<PaginatedResponse<EmprendedorResumen>>(
+            cacheKey,
+                (json) => _parsePaginatedResponse(json),
+          );
+          if (cached != null) {
+            debugPrint('[EmprendedorService] cache hit: $cacheKey');
+            return cached;
+          }
+
+          final response = await _httpClient.get<List<EmprendedorResumen>>(
+            '${AppConfig.getEndpoint('emprendedores', 'byCategory')}/$categoria',
+            queryParams: queryParams,
+            fromJson: (json) =>
+                (json as List).map((x) => EmprendedorResumen.fromJson(x)).toList(),
+          );
+
+          if (response.success && response.data != null) {
+            final dataList = response.data!;
+            final totalPages = _calculateTotalPages(dataList.length, perPage);
+            final hasNext = dataList.length >= perPage;
+
+            final pageResp = PaginatedResponse<EmprendedorResumen>.success(
+              data: dataList,
+              currentPage: page,
+              totalPages: totalPages,
+              totalItems: dataList.length,
+              perPage: perPage,
+              hasNextPage: hasNext,
+              hasPreviousPage: page > 1,
+              message: response.message,
+              statusCode: response.statusCode,
+            );
+
+            final cacheMap = {
+              'data': dataList.map((e) => e.toJson()).toList(),
+              'currentPage': page,
+              'totalPages': totalPages,
+              'totalItems': dataList.length,
+              'perPage': perPage,
+              'hasNextPage': hasNext,
+              'hasPreviousPage': page > 1,
+              'message': response.message,
+              'statusCode': response.statusCode,
+            };
+            await _cacheService.setEmprendedoresData(cacheKey, cacheMap);
+
+            return pageResp;
+          } else {
+            throw response.message;
+          }
+        });
+
+    if (result == null) {
+      throw 'No se recibió respuesta en getEmprendedoresByCategoria';
+    }
+    return result;
+  }
+
+  // =========================
+  // Destacados
+  // =========================
+  Future<List<EmprendedorResumen>> getEmprendedoresDestacados() async {
+    final result = await executeWithStates<List<EmprendedorResumen>>(() async {
+      if (AppConfig.isTestMode) {
+        debugPrint(
+            '[EmprendedorService] (test) getEmprendedoresDestacados');
+        await Future.delayed(const Duration(milliseconds: 300));
+        return _testEmprendedores
+            .take(3)
+            .map((json) => EmprendedorResumen.fromJson(json))
+            .toList();
+      }
+
+      const cacheKey = 'emprendedores_destacados';
+      final cached =
+      await _cacheService.getEmprendedoresData<List<EmprendedorResumen>>(
+        cacheKey,
+            (json) =>
+            (json as List).map((x) => EmprendedorResumen.fromJson(x)).toList(),
+      );
+      if (cached != null) {
+        debugPrint('[EmprendedorService] cache hit destacados');
+        return cached;
+      }
+
+      final response = await _httpClient.get<List<EmprendedorResumen>>(
+        '${AppConfig.getEndpoint('emprendedores', 'list')}/destacados',
+        fromJson: (json) =>
+            (json as List).map((x) => EmprendedorResumen.fromJson(x)).toList(),
+      );
+
+      if (response.success && response.data != null) {
+        await _cacheService.setEmprendedoresData(cacheKey, response.data!);
+        return response.data!;
+      } else {
+        throw response.message;
+      }
+    });
+
+    if (result == null) {
+      throw 'No se recibió respuesta en getEmprendedoresDestacados';
+    }
+    return result;
+  }
+
+  // =========================
+  // Categorías
+  // =========================
   Future<List<String>> getCategorias() async {
-    try {
-      print('🏷️ EmprendedorService: Obteniendo categorías disponibles...');
-      
-      // Modo de prueba
-      if (BackendConfig.testMode) {
-        print('🧪 EmprendedorService: Obteniendo categorías en modo prueba');
+    final result = await executeWithStates<List<String>>(() async {
+      if (AppConfig.isTestMode) {
+        debugPrint('[EmprendedorService] (test) getCategorias');
         await Future.delayed(const Duration(milliseconds: 200));
-        
-        print('✅ EmprendedorService: ${_testCategorias.length} categorías obtenidas (modo prueba)');
-        return _testCategorias;
+        return [
+          'Alojamiento',
+          'Restaurante',
+          'Turismo',
+          'Artesanía',
+          'Transporte',
+          'Otros'
+        ];
       }
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/emprendedores/categorias'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+
+      const cacheKey = 'emprendedores_categorias';
+      final cached = await _cacheService.getEmprendedoresData<List<String>>(
+        cacheKey,
+            (json) => (json as List).map((x) => x.toString()).toList(),
+      );
+      if (cached != null) {
+        debugPrint('[EmprendedorService] cache hit categorías');
+        return cached;
+      }
+
+      final response = await _httpClient.get<List<String>>(
+        '${AppConfig.getEndpoint('emprendedores', 'list')}/categorias',
+        fromJson: (json) => (json as List).map((x) => x.toString()).toList(),
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = _extractDataFromResponse(response.body);
-        final categorias = data.map((item) => item['nombre'] as String).toList();
-        
-        print('✅ EmprendedorService: ${categorias.length} categorías obtenidas');
-        return categorias;
+      if (response.success && response.data != null) {
+        await _cacheService.setEmprendedoresData(cacheKey, response.data!);
+        return response.data!;
       } else {
-        // Si no existe el endpoint de categorías, retornar categorías por defecto
-        print('⚠️ EmprendedorService: Endpoint de categorías no disponible, usando categorías por defecto');
-        return _testCategorias;
+        // fallback por si backend no responde
+        return [
+          'Alojamiento',
+          'Restaurante',
+          'Turismo',
+          'Artesanía',
+          'Transporte',
+          'Otros'
+        ];
       }
-    } catch (e) {
-      print('❌ EmprendedorService: Error obteniendo categorías: $e');
-      // Retornar categorías por defecto en caso de error
-      return _testCategorias;
+    });
+
+    if (result == null) throw 'No se recibió respuesta en getCategorias';
+    return result;
+  }
+
+  // =========================
+  // Utilidades privadas
+  // =========================
+
+  int _calculateTotalPages(int totalItems, int perPage) {
+    if (perPage <= 0) return 1;
+    return (totalItems / perPage).ceil();
+  }
+
+  PaginatedResponse<EmprendedorResumen> _parsePaginatedResponse(
+      Map<String, dynamic> json) {
+    final data = (json['data'] as List)
+        .map((x) => EmprendedorResumen.fromJson(x))
+        .toList();
+
+    return PaginatedResponse<EmprendedorResumen>.success(
+      data: data,
+      currentPage: json['currentPage'] ?? 1,
+      totalPages: json['totalPages'] ?? 1,
+      totalItems: json['totalItems'] ?? data.length,
+      perPage: json['perPage'] ?? 20,
+      hasNextPage: json['hasNextPage'] ?? false,
+      hasPreviousPage: json['hasPreviousPage'] ?? false,
+      message: json['message'] ?? 'Datos obtenidos del cache',
+      statusCode: json['statusCode'],
+    );
+  }
+
+  // =========================
+  // Invalidate Helpers
+  // =========================
+  Future<void> invalidarCache({String? patron}) async {
+    if (patron != null) {
+      await _cacheService.invalidateByPattern('emprendedores_$patron');
+    } else {
+      await _cacheService.invalidateByPattern('emprendedores_');
     }
   }
 
-  void dispose() {
-    // Cleanup si es necesario
+  Future<void> limpiarCache() async {
+    await _cacheService.invalidateByPattern('emprendedores_');
   }
-} 
+}

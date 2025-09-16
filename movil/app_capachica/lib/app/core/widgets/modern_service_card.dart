@@ -1,19 +1,23 @@
+import 'package:app_capachica/app/data/models/servicio_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../../services/auth_service.dart';
 import '../../core/controllers/cart_controller.dart';
-import '../../data/models/servicio_model.dart';
+// Ajusta esta ruta si tu modelo está en otro archivo:
+
+
 import 'auth_redirect_dialog.dart';
 
 class ModernServiceCard extends StatefulWidget {
-  final ServicioModel servicio;
+  final Servicio servicio;
   final VoidCallback? onTap;
 
   const ModernServiceCard({
-    Key? key,
+    super.key,
     required this.servicio,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<ModernServiceCard> createState() => _ModernServiceCardState();
@@ -22,13 +26,26 @@ class ModernServiceCard extends StatefulWidget {
 class _ModernServiceCardState extends State<ModernServiceCard> {
   bool isLoading = false;
   final notasController = TextEditingController();
-  String fechaInicio = DateTime.now().add(const Duration(days: 1)).toIso8601String().split('T')[0];
-  String fechaFin = DateTime.now().add(const Duration(days: 1)).toIso8601String().split('T')[0];
+
+  String fechaInicio =
+  DateTime.now().add(const Duration(days: 1)).toIso8601String().split('T')[0];
+  String fechaFin =
+  DateTime.now().add(const Duration(days: 1)).toIso8601String().split('T')[0];
   String horaInicio = '09:00';
   String horaFin = '10:00';
   int duracionMinutos = 60;
   int cantidad = 1;
-  double get precioTotal => widget.servicio.precio * cantidad;
+
+  double get precioUnitario =>
+      (widget.servicio.precio is num) ? (widget.servicio.precio as num).toDouble() : 0.0;
+
+  double get precioTotal => precioUnitario * cantidad;
+
+  @override
+  void dispose() {
+    notasController.dispose();
+    super.dispose();
+  }
 
   void showAuthRedirectDialog() {
     Get.dialog(
@@ -39,7 +56,7 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
     );
   }
 
-  void _handleAgregarAlCarrito() async {
+  Future<void> _handleAgregarAlCarrito() async {
     final authService = Get.find<AuthService>();
     final cartController = Get.find<CartController>();
 
@@ -49,11 +66,8 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
     }
 
     try {
-      setState(() {
-        isLoading = true;
-      });
+      setState(() => isLoading = true);
 
-      // Crear el objeto de reserva
       final reserva = {
         'servicioId': widget.servicio.id,
         'emprendedorId': widget.servicio.emprendedorId,
@@ -65,13 +79,12 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
         'cantidad': cantidad,
         'notasCliente': notasController.text,
         'precioTotal': precioTotal,
-        'servicio': widget.servicio.toJson(),
+        'servicio': widget.servicio.toJson(), // ajusta si tu modelo usa toMap()
       };
 
-      // Agregar al carrito
       await cartController.agregarAlCarrito(reserva);
 
-      // Mostrar mensaje de éxito
+      if (!mounted) return;
       Get.snackbar(
         '¡Agregado!',
         'Servicio agregado al carrito exitosamente',
@@ -80,25 +93,27 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
         colorText: Colors.white,
         duration: const Duration(seconds: 2),
       );
-
     } catch (e) {
-      print('Error al agregar al carrito: $e');
+      debugPrint('Error al agregar al carrito: $e');
+      if (!mounted) return;
       Get.snackbar(
         'Error',
-        'No se pudo agregar al carrito: ${e.toString()}',
+        'No se pudo agregar al carrito: $e',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -106,6 +121,7 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
       ),
       child: InkWell(
         onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -113,7 +129,7 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Image.network(
-                widget.servicio.imagenUrl,
+                widget.servicio.imagenUrl ?? '',
                 height: 200,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -121,7 +137,8 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
                   return Container(
                     height: 200,
                     color: Colors.grey[300],
-                    child: const Icon(Icons.error_outline),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.image_not_supported_outlined),
                   );
                 },
               ),
@@ -133,7 +150,7 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
                 children: [
                   // Nombre del servicio
                   Text(
-                    widget.servicio.nombre,
+                    widget.servicio.nombre ?? '',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -142,12 +159,10 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
                   const SizedBox(height: 8),
                   // Descripción
                   Text(
-                    widget.servicio.descripcion,
+                    widget.servicio.descripcion ?? '',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 16),
                   // Precio y botón de reserva
@@ -155,28 +170,28 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'S/ ${widget.servicio.precio.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        'S/ ${precioUnitario.toStringAsFixed(2)}',
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: colorScheme.primary,
                         ),
                       ),
                       ElevatedButton.icon(
                         onPressed: isLoading ? null : _handleAgregarAlCarrito,
                         icon: isLoading
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
                             : const Icon(Icons.add_shopping_cart),
                         label: Text(isLoading ? 'Agregando...' : 'Agregar'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
+                          backgroundColor: colorScheme.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -193,4 +208,4 @@ class _ModernServiceCardState extends State<ModernServiceCard> {
       ),
     );
   }
-} 
+}

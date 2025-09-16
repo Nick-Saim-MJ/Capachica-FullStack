@@ -7,22 +7,30 @@ import 'app/core/theme/app_theme.dart';
 import 'app/core/controllers/theme_controller.dart';
 import 'package:app_capachica/app/services/auth_service.dart';
 import 'package:app_capachica/app/services/reserva_service.dart';
+import 'package:app_capachica/app/services/services_capachica_service.dart';
 import 'app/core/controllers/cart_controller.dart';
+import 'app/core/cache/cache_service.dart';
+import 'app/core/http/http_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inicializar GetStorage
   await GetStorage.init();
+  
+  // Inicializar servicios core
+  Get.put(CacheService());
+  Get.put(AppHttpClient.instance);
+  
+  // Inicializar AuthService
   await Get.putAsync(() => AuthService().init());
   
-  // Inicializar el servicio de reservas
+  // Inicializar otros servicios
   Get.put(ReservaService());
+  Get.put(ServicesCapachicaService());
   
-  // Inicializar el controlador de tema
+  // Inicializar controladores
   Get.put(ThemeController());
-
-  // Inicializar el controlador global del carrito
   Get.put(CartController());
 
   runApp(MyApp());

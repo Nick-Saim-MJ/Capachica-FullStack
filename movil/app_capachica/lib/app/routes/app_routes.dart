@@ -14,6 +14,8 @@ abstract class AppRoutes {
   static const MIS_RESERVAS = '/mis-reservas';
   static const EMPRENDEDORES = '/emprendedores';
   static const EMPRENDEDOR_DETALLE = '/emprendedores/detail';
+  static const SERVICIOS = '/servicios';
+  static const SERVICIO_DETALLE = '/servicio-detalle';
   static const EVENTOS = '/eventos';
   static const EVENTO_DETALLE = '/eventos/detail';
   static const EVENTOS_EMPRENDEDOR = '/eventos/emprendedor';

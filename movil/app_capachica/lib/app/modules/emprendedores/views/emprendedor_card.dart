@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../data/models/emprendedor_model.dart';
+import '../../../data/models/emprendedor_resumen_model.dart';
 
 class EmprendedorCard extends StatelessWidget {
-  final Emprendedor emprendedor;
+  final EmprendedorResumen emprendedor;
   final VoidCallback onTap;
 
   const EmprendedorCard({
@@ -238,7 +238,7 @@ class EmprendedorCard extends StatelessWidget {
                       
                       SizedBox(height: 12),
                       
-                      // Servicios disponibles y botón
+                      // Servicios disponibles y precio
                       Row(
                         children: [
                           Container(
@@ -259,9 +259,7 @@ class EmprendedorCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  emprendedor.servicios != null && emprendedor.servicios!.isNotEmpty
-                                      ? '${emprendedor.servicios!.length} servicio${emprendedor.servicios!.length != 1 ? 's' : ''}'
-                                      : 'Servicios disponibles', 
+                                  emprendedor.infoServicios,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600, 
                                     color: isDark ? Colors.white : Color(0xFF1A202C),
@@ -270,13 +268,22 @@ class EmprendedorCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                Text(
-                                  'Ver detalles', 
-                                  style: TextStyle(
-                                    fontSize: 12, 
-                                    color: isDark ? Colors.white70 : Color(0xFF718096),
+                                if (emprendedor.tienePrecioMinimo)
+                                  Text(
+                                    'Desde ${emprendedor.precioMinimoFormateado}',
+                                    style: TextStyle(
+                                      fontSize: 12, 
+                                      color: isDark ? Colors.white70 : Color(0xFF718096),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'Ver detalles', 
+                                    style: TextStyle(
+                                      fontSize: 12, 
+                                      color: isDark ? Colors.white70 : Color(0xFF718096),
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),
@@ -310,37 +317,7 @@ class EmprendedorCard extends StatelessWidget {
   }
 
   Widget _buildEmprendedorImage(bool isDark) {
-    String? imagenUrl;
-    
-    try {
-      // Intentar obtener la imagen principal
-      if (emprendedor.imagen != null && emprendedor.imagen!.isNotEmpty) {
-        imagenUrl = emprendedor.imagen;
-      } else if (emprendedor.imagenes != null && emprendedor.imagenes!.isNotEmpty) {
-        // Si no hay imagen principal, intentar obtener de la lista de imágenes
-        final imgs = emprendedor.imagenes!;
-        List<String> lista = [];
-        
-        if (imgs.startsWith('[') && imgs.endsWith(']')) {
-          lista = imgs
-              .replaceAll('[', '')
-              .replaceAll(']', '')
-              .replaceAll('"', '')
-              .split(',')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList();
-        } else if (imgs.contains(',')) {
-          lista = imgs.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-        } else {
-          lista = [imgs];
-        }
-        
-        if (lista.isNotEmpty && lista[0].isNotEmpty) {
-          imagenUrl = lista[0];
-        }
-      }
-    } catch (_) {}
+    String? imagenUrl = emprendedor.imagenPrincipal;
 
     // Validar que la URL sea válida
     bool isValidUrl(String? url) {

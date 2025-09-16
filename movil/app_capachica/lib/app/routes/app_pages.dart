@@ -1,5 +1,9 @@
+import 'package:app_capachica/app/data/models/emprendedor_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+// Asegúrate que Emprendedor y EmprendedorDetailScreen estén correctamente importados si no lo están ya
+// import '../modules/emprendedores/models/emprendedor_model.dart'; // o la ruta correcta a tu modelo Emprendedor
+// import '../modules/emprendedores/views/emprendedor_detail_screen.dart';
 import '../modules/profile/bindings/profile_binding.dart';
 import '../modules/splash/bindings/splash_binding.dart';
 import '../modules/splash/views/splash_screen.dart';
@@ -14,6 +18,10 @@ import '../modules/services_capachica/bindings/services_capachica_binding.dart';
 import '../modules/services_capachica/views/services_capachica_screen.dart';
 import '../modules/services_capachica/views/service_detail_screen.dart';
 import '../modules/services_capachica/controllers/services_capachica_controller.dart';
+// Importa Emprendedor y EmprendedorDetailScreen si no están ya
+ // O la ruta correcta a tu modelo Emprendedor
+import '../modules/emprendedores/views/emprendedor_detail_screen.dart';
+import '../modules/emprendedores/controllers/emprendedores_controller.dart';
 import '../modules/resumen/bindings/resumen_binding.dart';
 import '../modules/resumen/views/resumen_screen.dart';
 import '../modules/planes/bindings/planes_binding.dart';
@@ -24,8 +32,12 @@ import '../modules/mis_reservas/bindings/mis_reservas_binding.dart';
 import '../modules/mis_reservas/views/mis_reservas_screen.dart';
 import '../modules/emprendedores/bindings/emprendedores_binding.dart';
 import '../modules/emprendedores/views/emprendedores_screen.dart';
-import '../modules/emprendedores/views/emprendedor_detail_screen.dart';
-import '../modules/emprendedores/controllers/emprendedores_controller.dart';
+// import '../modules/emprendedores/views/emprendedor_detail_screen.dart'; // Ya importado arriba
+// import '../modules/emprendedores/controllers/emprendedores_controller.dart'; // Ya importado arriba
+import '../modules/servicios/bindings/servicios_binding.dart';
+import '../modules/servicios/views/servicios_list_view.dart';
+import '../modules/servicios/views/servicio_detail_view.dart';
+import '../modules/servicios/views/carrito_view.dart';
 import '../modules/eventos/bindings/eventos_binding.dart';
 import '../modules/eventos/views/eventos_screen.dart';
 import '../modules/eventos/views/evento_detail_screen.dart';
@@ -108,7 +120,6 @@ class AppPages {
         if (servicio != null) {
           return ServiceDetailScreen(servicio: servicio);
         }
-        // Si no está en memoria, intentar cargarlo de la API
         return FutureBuilder(
           future: controller.fetchServicioById(id),
           builder: (context, snapshot) {
@@ -121,7 +132,7 @@ class AppPages {
             if (snapshot.hasError) {
               return Scaffold(
                 appBar: AppBar(title: Text('Detalle de Servicio')),
-                body: Center(child: Text('Error al cargar el servicio: \\n${snapshot.error}')),
+                body: Center(child: Text('Error al cargar el servicio: \n${snapshot.error}')),
               );
             }
             if (snapshot.hasData && snapshot.data != null) {
@@ -168,7 +179,22 @@ class AppPages {
     ),
     GetPage(
       name: Routes.CARRITO,
-      page: () => const CarritoScreen(),
+      page: () => CarritoView(),
+      binding: ServiciosBinding(),
+      transitionDuration: const Duration(milliseconds: 400),
+      customTransition: FadeScaleTransition(),
+    ),
+    GetPage(
+      name: Routes.SERVICIOS,
+      page: () => ServiciosListView(),
+      binding: ServiciosBinding(),
+      transitionDuration: const Duration(milliseconds: 400),
+      customTransition: FadeScaleTransition(),
+    ),
+    GetPage(
+      name: Routes.SERVICIO_DETALLE,
+      page: () => ServicioDetailView(),
+      binding: ServiciosBinding(),
       transitionDuration: const Duration(milliseconds: 400),
       customTransition: FadeScaleTransition(),
     ),
@@ -179,37 +205,51 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 400),
       customTransition: FadeScaleTransition(),
     ),
+    // ========= MODIFICACIÓN AQUÍ for EMPRENDEDOR_DETAIL ===========
     GetPage(
-      name: '/emprendedores/detail/:id',
+      name: Routes.EMPRENDEDOR_DETAIL, // Usar la constante de app_routes.dart si existe
+                                  // o '/emprendedores/detail/:id' si no
       page: () {
-        final id = int.tryParse(Get.parameters['id'] ?? '') ?? 0;
-        final controller = Get.find<EmprendedoresController>();
-        final emprendedor = controller.emprendedores.firstWhereOrNull((e) => e.id == id);
-        if (emprendedor != null) {
-          return EmprendedorDetailScreen(emprendedor: emprendedor);
+        final idString = Get.parameters['id'];
+        if (idString == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Error')),
+            body: const Center(child: Text('ID de emprendedor no proporcionado.')),
+          );
         }
-        // Si no está en memoria, intentar cargarlo de la API
-        return FutureBuilder(
-          future: controller.fetchEmprendedorById(id),
+        final id = int.tryParse(idString) ?? 0;
+        if (id == 0) {
+           return Scaffold(
+            appBar: AppBar(title: const Text('Error')),
+            body: const Center(child: Text('ID de emprendedor inválido.')),
+          );
+        }
+
+        // Siempre se usa FutureBuilder para cargar el Emprendedor completo.
+        // Asumimos que fetchEmprendedorById devuelve Future<Emprendedor?>
+        // y EmprendedorDetailScreen espera un Emprendedor.
+        // También asumimos que Emprendedor es el tipo de dato completo, no EmprendedorResumen.
+        return FutureBuilder<Emprendedor?>( 
+          future: Get.find<EmprendedoresController>().fetchEmprendedorById(id),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Scaffold(
-                appBar: AppBar(title: Text('Detalle del Emprendedor')),
-                body: Center(child: CircularProgressIndicator()),
+                appBar: AppBar(title: const Text('Cargando Detalle...')),
+                body: const Center(child: CircularProgressIndicator()),
               );
             }
             if (snapshot.hasError) {
               return Scaffold(
-                appBar: AppBar(title: Text('Detalle del Emprendedor')),
-                body: Center(child: Text('Error al cargar el emprendedor: \\n${snapshot.error}')),
+                appBar: AppBar(title: const Text('Error')),
+                body: Center(child: Text('Error al cargar el emprendedor: \n${snapshot.error}')),
               );
             }
             if (snapshot.hasData && snapshot.data != null) {
               return EmprendedorDetailScreen(emprendedor: snapshot.data!);
             }
             return Scaffold(
-              appBar: AppBar(title: Text('Detalle del Emprendedor')),
-              body: Center(child: Text('Emprendedor no encontrado')),
+              appBar: AppBar(title: const Text('No Encontrado')),
+              body: const Center(child: Text('Emprendedor no encontrado')),
             );
           },
         );
@@ -218,6 +258,7 @@ class AppPages {
       transitionDuration: const Duration(milliseconds: 400),
       customTransition: FadeScaleTransition(),
     ),
+    // =============================================================
     GetPage(
       name: Routes.EVENTOS,
       page: () => EventosScreen(),
@@ -271,6 +312,10 @@ abstract class Routes {
   static const MIS_RESERVAS = _Paths.MIS_RESERVAS;
   static const CARRITO = _Paths.CARRITO;
   static const EMPRENDEDORES = _Paths.EMPRENDEDORES;
+  // Añadir la ruta de detalle de emprendedor si no existe
+  static const EMPRENDEDOR_DETAIL = _Paths.EMPRENDEDOR_DETAIL; 
+  static const SERVICIOS = _Paths.SERVICIOS;
+  static const SERVICIO_DETALLE = _Paths.SERVICIO_DETALLE;
   static const EVENTOS = _Paths.EVENTOS;
 }
 
@@ -287,5 +332,9 @@ abstract class _Paths {
   static const MIS_RESERVAS = '/mis-reservas';
   static const CARRITO = '/carrito';
   static const EMPRENDEDORES = '/emprendedores';
+  // Definir el path para el detalle del emprendedor
+  static const EMPRENDEDOR_DETAIL = '/emprendedores/detail/:id'; 
+  static const SERVICIOS = '/servicios';
+  static const SERVICIO_DETALLE = '/servicio-detalle';
   static const EVENTOS = '/eventos';
 }
