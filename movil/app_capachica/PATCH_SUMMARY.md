@@ -291,7 +291,7 @@ flutter test
 flutter test test/models/emprendedor_model_test.dart
 flutter test test/models/servicio_model_test.dart
 flutter test test/models/carrito_model_test.dart
-flutter test test/controllers/emprendedores_controller_test.dart
+flutter test test/controllers/emprendedores_controller_test.dart.bak
 flutter test test/controllers/servicios_controller_test.dart
 ```
 

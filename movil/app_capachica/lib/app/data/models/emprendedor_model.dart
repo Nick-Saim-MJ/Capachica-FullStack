@@ -173,18 +173,39 @@ class ServicioEmprendedor {
 
   factory ServicioEmprendedor.fromJson(Map<String, dynamic> json) {
     final caseConverter = CaseConverter();
-    
+
     return ServicioEmprendedor(
-      id: caseConverter.getValueWithFallback<int>(json, 'id', 'id') ?? 0,
+      // 🔑 Aplicar _parseNum para el ID
+      id: _parseNum<int>(caseConverter.getValueWithFallback<dynamic>(json, 'id', 'id')) ?? 0,
       nombre: caseConverter.getValueWithFallback<String>(json, 'nombre', 'nombre') ?? '',
       descripcion: caseConverter.getValueWithFallback<String>(json, 'descripcion', 'descripcion') ?? '',
-      precioReferencial: (caseConverter.getValueWithFallback<num>(json, 'precioReferencial', 'precio_referencial') ?? 0).toDouble(),
+      // 🔑 Aplicar _parseNum para el precioReferencial
+      precioReferencial: _parseNum<double>(caseConverter.getValueWithFallback<dynamic>(json, 'precioReferencial', 'precio_referencial')) ?? 0.0,
       ubicacionReferencia: caseConverter.getValueWithFallback<String>(json, 'ubicacionReferencia', 'ubicacion_referencia') ?? '',
-      capacidad: caseConverter.getValueWithFallback<int>(json, 'capacidad', 'capacidad') ?? 0,
+      // 🔑 Aplicar _parseNum para la capacidad
+      capacidad: _parseNum<int>(caseConverter.getValueWithFallback<dynamic>(json, 'capacidad', 'capacidad')) ?? 0,
       estado: caseConverter.getValueWithFallback<bool>(json, 'estado', 'estado') ?? false,
       categorias: _parseCategorias(caseConverter.getValueWithFallback<List<dynamic>>(json, 'categorias', 'categorias')),
       horarios: _parseHorarios(caseConverter.getValueWithFallback<List<dynamic>>(json, 'horarios', 'horarios')),
     );
+  }
+
+  static T? _parseNum<T extends num>(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is T) {
+      return value;
+    }
+    if (value is String) {
+      if (T == int) {
+        return int.tryParse(value) as T?;
+      }
+      if (T == double) {
+        return double.tryParse(value) as T?;
+      }
+    }
+    return null;
   }
 
   static List<Categoria> _parseCategorias(List<dynamic>? categoriasJson) {
@@ -261,13 +282,41 @@ class RelacionEmprendedor {
 
   factory RelacionEmprendedor.fromJson(Map<String, dynamic> json) {
     final caseConverter = CaseConverter();
-    
+
     return RelacionEmprendedor(
-      id: caseConverter.getValueWithFallback<int>(json, 'id', 'id') ?? 0,
+      // 🔑 Aplicar _parseNum para el ID
+      id: _parseNum<int>(caseConverter.getValueWithFallback<dynamic>(json, 'id', 'id')) ?? 0,
       tipo: caseConverter.getValueWithFallback<String>(json, 'tipo', 'tipo') ?? '',
       valor: caseConverter.getValueWithFallback<String>(json, 'valor', 'valor') ?? '',
-      fechaCreacion: Emprendedor._parseDateTime(caseConverter.getValueWithFallback<String>(json, 'fechaCreacion', 'fecha_creacion')),
+      fechaCreacion: _parseDateTime(caseConverter.getValueWithFallback<String>(json, 'fechaCreacion', 'fecha_creacion')),
     );
+  }
+
+  static T? _parseNum<T extends num>(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is T) {
+      return value;
+    }
+    if (value is String) {
+      if (T == int) {
+        return int.tryParse(value) as T?;
+      }
+      if (T == double) {
+        return double.tryParse(value) as T?;
+      }
+    }
+    return null;
+  }
+
+  static DateTime? _parseDateTime(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return null;
+    try {
+      return DateTime.parse(dateString);
+    } catch (e) {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {

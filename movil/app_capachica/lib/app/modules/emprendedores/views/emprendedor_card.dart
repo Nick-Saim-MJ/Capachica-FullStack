@@ -244,13 +244,13 @@ class EmprendedorCard extends StatelessWidget {
                           Container(
                             padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: (isDark ? Color(0xFF3B82F6) : Color(0xFFFF6B35)).withValues(alpha: 0.1),
+                              color: (isDark ? Color(0xFF3B82F6) : Color(0xFFFF6B35)).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              Icons.work, 
-                              color: isDark ? Color(0xFF3B82F6) : Color(0xFFFF6B35), 
-                              size: 16
+                                Icons.work,
+                                color: isDark ? Color(0xFF3B82F6) : Color(0xFFFF6B35),
+                                size: 16
                             ),
                           ),
                           SizedBox(width: 8),
@@ -259,31 +259,23 @@ class EmprendedorCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  emprendedor.infoServicios,
+                                  'Servicios disponibles',
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w600, 
+                                    fontWeight: FontWeight.w600,
                                     color: isDark ? Colors.white : Color(0xFF1A202C),
                                     fontSize: 13,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (emprendedor.tienePrecioMinimo)
-                                  Text(
-                                    'Desde ${emprendedor.precioMinimoFormateado}',
-                                    style: TextStyle(
-                                      fontSize: 12, 
-                                      color: isDark ? Colors.white70 : Color(0xFF718096),
-                                    ),
-                                  )
-                                else
-                                  Text(
-                                    'Ver detalles', 
-                                    style: TextStyle(
-                                      fontSize: 12, 
-                                      color: isDark ? Colors.white70 : Color(0xFF718096),
-                                    ),
+                                // Muestra un mensaje genérico en el resumen
+                                Text(
+                                  'Ver detalles para más información',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white70 : Color(0xFF718096),
                                   ),
+                                ),
                               ],
                             ),
                           ),

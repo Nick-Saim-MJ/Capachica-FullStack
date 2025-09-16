@@ -30,9 +30,13 @@ class EmprendedorResumen {
     this.precioMinimo,
   });
 
+  // En tu archivo emprendedor_resumen.dart
+
+  // En tu archivo emprendedor_resumen.dart
+
   factory EmprendedorResumen.fromJson(Map<String, dynamic> json) {
     final caseConverter = CaseConverter();
-    
+
     return EmprendedorResumen(
       id: caseConverter.getValueWithFallback<int>(json, 'id', 'id') ?? 0,
       nombre: caseConverter.getValueWithFallback<String>(json, 'nombre', 'nombre') ?? '',
@@ -44,8 +48,10 @@ class EmprendedorResumen {
       imagen: caseConverter.getValueWithFallback<String>(json, 'imagen', 'imagen'),
       estado: caseConverter.getValueWithFallback<bool>(json, 'estado', 'estado') ?? false,
       fechaCreacion: _parseDateTime(caseConverter.getValueWithFallback<String>(json, 'fechaCreacion', 'fecha_creacion')),
-      totalServicios: caseConverter.getValueWithFallback<int>(json, 'totalServicios', 'total_servicios'),
-      precioMinimo: caseConverter.getValueWithFallback<double>(json, 'precioMinimo', 'precio_minimo'),
+
+      // 🔑 Solución: Obtener el valor como 'dynamic' y luego hacer el parseo seguro
+      totalServicios: _parseNum<int>(caseConverter.getValueWithFallback<dynamic>(json, 'totalServicios', 'total_servicios')),
+      precioMinimo: _parseNum<double>(caseConverter.getValueWithFallback<dynamic>(json, 'precioMinimo', 'precio_minimo')),
     );
   }
 
@@ -56,6 +62,25 @@ class EmprendedorResumen {
     } catch (e) {
       return null;
     }
+  }
+
+// 🔑 Nueva función genérica para parsear números de forma segura
+  static T? _parseNum<T extends num>(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is T) {
+      return value;
+    }
+    if (value is String) {
+      if (T == int) {
+        return int.tryParse(value) as T?;
+      }
+      if (T == double) {
+        return double.tryParse(value) as T?;
+      }
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {

@@ -1,39 +1,25 @@
-import 'package:flutter/foundation.dart';
+import 'package:app_capachica/app/data/models/emprendedor_model.dart';
+import 'package:app_capachica/app/data/models/emprendedor_resumen_model.dart';
+import 'package:app_capachica/app/data/models/services_capachica_model.dart';
+import 'package:app_capachica/app/data/repositories/emprendedor_repository.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
-import '../../../data/models/emprendedor_model.dart';
-import '../../../data/models/emprendedor_resumen_model.dart';
-import '../../../services/emprendedor_service.dart';
-import '../../../core/utils/pagination_helper.dart';
+import 'package:flutter/foundation.dart';
 
 class EmprendedoresController extends GetxController {
-  final EmprendedorService _emprendedorService = EmprendedorService();
+  final EmprendedoresCapachicaRepository repository;
+  final TextEditingController searchController = TextEditingController();
+
+  EmprendedoresController(this.repository);
 
   // Estados principales
   final emprendedores = <EmprendedorResumen>[].obs;
   final isLoading = false.obs;
-  final isLoadingMore = false.obs;
   final error = ''.obs;
-  final hasMore = true.obs;
 
   // Estados de búsqueda y filtros
   final searchQuery = ''.obs;
   final selectedCategoria = ''.obs;
-  final selectedUbicacion = ''.obs;
-  final categorias = <String>[].obs;
-  final ubicaciones = <String>[].obs;
-
-  // Estados de paginación
-  final currentPage = 1.obs;
-  final perPage = 20.obs;
-  final totalItems = 0.obs;
-  final totalPages = 0.obs;
-
-  // Estados de ordenamiento
-  final sortBy = ''.obs;
-  final sortOrder = 'asc'.obs;
-
-  // Estado de paginación
-  late PaginationState _paginationState;
 
   // Worker para manejar el debounce de búsqueda
   late Worker _searchDebounce;
@@ -41,22 +27,19 @@ class EmprendedoresController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    debugPrint('🏪 EmprendedoresController: Inicializando...');
-    _initializePagination();
+    debugPrint('🏪 EmprendedoresCapachicaController: Inicializando...');
 
     // Configurar debounce: se ejecuta cuando cambia searchQuery
     _searchDebounce = debounce<String>(
       searchQuery,
           (q) async {
-        debugPrint('🔍 EmprendedoresController: Buscando con query: "$q"');
-        await loadEmprendedores(refresh: true);
+        debugPrint('🔍 EmprendedoresCapachicaController: Buscando con query: "$q"');
+        await buscarEmprendedores(q);
       },
       time: const Duration(milliseconds: 400),
     );
 
-    loadEmprendedores();
-    loadCategorias();
-    loadUbicaciones();
+    fetchEmprendedores();
   }
 
   @override
@@ -66,278 +49,139 @@ class EmprendedoresController extends GetxController {
     super.onClose();
   }
 
-  /// Inicializar estado de paginación
-  void _initializePagination() {
-    _paginationState = PaginationHelper.createInitialPaginationState(
-      perPage: perPage.value,
-    );
-  }
-
-  /// Cargar emprendedores con paginación
-  Future<void> loadEmprendedores({bool refresh = false}) async {
+  /// Cargar todos los emprendedores
+  Future<void> fetchEmprendedores() async {
     try {
-      if (refresh) {
-        _resetPagination();
-      }
-
-      if (isLoading.value || isLoadingMore.value) return;
-
-      if (refresh) {
-        isLoading.value = true;
-      } else {
-        isLoadingMore.value = true;
-      }
-
+      debugPrint('🔄 EmprendedoresCapachicaController: Iniciando carga de emprendedores...');
+      isLoading.value = true;
       error.value = '';
 
-      debugPrint('🔄 EmprendedoresController: Cargando emprendedores (página ${currentPage.value})...');
+      final data = await repository.getEmprendedores();
+      emprendedores.assignAll(data);
 
-      final response = await _emprendedorService.getEmprendedores(
-        page: currentPage.value,
-        perPage: perPage.value,
-        query: searchQuery.value.isNotEmpty ? searchQuery.value : null,
-        categoria: selectedCategoria.value.isNotEmpty ? selectedCategoria.value : null,
-        ubicacion: selectedUbicacion.value.isNotEmpty ? selectedUbicacion.value : null,
-        sortBy: sortBy.value.isNotEmpty ? sortBy.value : null,
-        sortOrder: sortOrder.value,
-      );
-
-      if (response.success && response.data != null) {
-        _updatePaginationState(response);
-
-        if (refresh) {
-          emprendedores.value = response.data!;
-        } else {
-          emprendedores.addAll(response.data!);
-        }
-
-        hasMore.value = response.hasNextPage;
-        totalItems.value = response.totalItems;
-        totalPages.value = response.totalPages;
-
-        debugPrint('✅ EmprendedoresController: ${response.data!.length} emprendedores cargados (${emprendedores.length} total)');
-      } else {
-        throw response.message;
-      }
+      print('✅ EmprendedoresCapachicaController: ${data.length} emprendedores cargados exitosamente');
     } catch (e) {
+      debugPrint('❌ EmprendedoresCapachicaController: Error cargando emprendedores: $e');
       error.value = e.toString();
-      debugPrint('❌ EmprendedoresController: Error cargando emprendedores: $e');
+      emprendedores.clear();
     } finally {
       isLoading.value = false;
-      isLoadingMore.value = false;
     }
   }
 
-  /// Cargar más emprendedores (infinite scroll)
-  Future<void> loadMoreEmprendedores() async {
-    if (!hasMore.value || isLoadingMore.value) return;
+  /// Obtener un emprendedor por su ID
+  Future<Emprendedor?> fetchEmprendedorById(int id) async {
+    try {
+      debugPrint('🔄 EmprendedoresCapachicaController: Obteniendo emprendedor con ID: $id');
+      isLoading.value = true;
+      error.value = '';
 
-    currentPage.value++;
-    await loadEmprendedores();
+      final emprendedor = await repository.getEmprendedorById(id);
+      debugPrint('✅ EmprendedoresCapachicaController: Emprendedor $id obtenido exitosamente');
+      return emprendedor;
+    } catch (e) {
+      debugPrint('❌ EmprendedoresCapachicaController: Error obteniendo emprendedor $id: $e');
+      error.value = e.toString();
+      return null;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  /// Refrescar lista de emprendedores
-  Future<void> refreshEmprendedores() async {
-    debugPrint('🔄 EmprendedoresController: Refrescando emprendedores...');
-    await loadEmprendedores(refresh: true);
-  }
+  /// Buscar emprendedores por un query de texto
+  Future<void> buscarEmprendedores(String query) async {
+    try {
+      debugPrint('🔄 EmprendedoresCapachicaController: Buscando emprendedores...');
+      isLoading.value = true;
+      error.value = '';
 
-  /// Actualiza el Rx para que dispare el debounce configurado en onInit
-  void searchEmprendedores(String query) {
-    searchQuery.value = query;
+      if (query.isEmpty) {
+        await fetchEmprendedores();
+        return;
+      }
+
+      final data = await repository.searchEmprendedores(query);
+      emprendedores.assignAll(data);
+
+      debugPrint('✅ EmprendedoresCapachicaController: ${data.length} resultados de búsqueda cargados');
+    } catch (e) {
+      debugPrint('❌ EmprendedoresCapachicaController: Error en la búsqueda de emprendedores: $e');
+      error.value = e.toString();
+      emprendedores.clear();
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   /// Filtrar por categoría
   Future<void> filterByCategoria(String categoria) async {
-    debugPrint('🏷️ EmprendedoresController: Filtrando por categoría: "$categoria"');
-    selectedCategoria.value = categoria;
-    await loadEmprendedores(refresh: true);
-  }
-
-  /// Filtrar por ubicación
-  Future<void> filterByUbicacion(String ubicacion) async {
-    debugPrint('📍 EmprendedoresController: Filtrando por ubicación: "$ubicacion"');
-    selectedUbicacion.value = ubicacion;
-    await loadEmprendedores(refresh: true);
-  }
-
-  /// Ordenar emprendedores
-  Future<void> sortEmprendedores(String field, String order) async {
-    debugPrint('📊 EmprendedoresController: Ordenando por $field ($order)');
-    sortBy.value = field;
-    sortOrder.value = order;
-    await loadEmprendedores(refresh: true);
-  }
-
-  /// Cargar categorías disponibles
-  Future<void> loadCategorias() async {
     try {
-      debugPrint('🏷️ EmprendedoresController: Cargando categorías...');
-      final categoriasList = await _emprendedorService.getCategorias();
-      categorias.value = categoriasList;
-      debugPrint('✅ EmprendedoresController: ${categoriasList.length} categorías cargadas');
+      debugPrint('🏷️ EmprendedoresCapachicaController: Filtrando por categoría: "$categoria"');
+      isLoading.value = true;
+      error.value = '';
+
+      selectedCategoria.value = categoria;
+      final data = await repository.getEmprendedoresByCategoria(categoria);
+      emprendedores.assignAll(data);
+
+      debugPrint('✅ EmprendedoresCapachicaController: ${data.length} emprendedores por categoría cargados');
     } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error cargando categorías: $e');
-      categorias.value = [
-        'Alojamiento',
-        'Restaurante',
-        'Turismo',
-        'Artesanía',
-        'Transporte',
-        'Otros'
-      ];
+      debugPrint('❌ EmprendedoresCapachicaController: Error cargando emprendedores por categoría: $e');
+      error.value = e.toString();
+      emprendedores.clear();
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  /// Cargar ubicaciones disponibles
-  Future<void> loadUbicaciones() async {
-    try {
-      debugPrint('📍 EmprendedoresController: Cargando ubicaciones...');
-      ubicaciones.value = [
-        'Capachica',
-        'Llachón',
-        'Amantaní',
-        'Taquile',
-        'Uros',
-        'Puno',
-      ];
-      debugPrint('✅ EmprendedoresController: ${ubicaciones.length} ubicaciones cargadas');
-    } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error cargando ubicaciones: $e');
-    }
-  }
-
-  /// Limpiar búsqueda
-  void clearSearch() {
-    debugPrint('🧹 EmprendedoresController: Limpiando búsqueda...');
-    searchQuery.value = '';
-    loadEmprendedores(refresh: true);
-  }
-
-  /// Limpiar filtros
+  /// Limpiar filtros de búsqueda y categoría
   void clearFilters() {
-    debugPrint('🧹 EmprendedoresController: Limpiando filtros...');
-    selectedCategoria.value = '';
-    selectedUbicacion.value = '';
-    sortBy.value = '';
-    sortOrder.value = 'asc';
-    loadEmprendedores(refresh: true);
-  }
-
-  /// Limpiar todo (búsqueda y filtros)
-  void clearAll() {
-    debugPrint('🧹 EmprendedoresController: Limpiando todo...');
+    debugPrint('🧹 EmprendedoresCapachicaController: Limpiando filtros...');
     searchQuery.value = '';
-    clearFilters();
+    selectedCategoria.value = '';
+    fetchEmprendedores();
   }
 
-  /// Verificar si hay filtros activos
-  bool get hasActiveFilters =>
-      selectedCategoria.value.isNotEmpty ||
-          selectedUbicacion.value.isNotEmpty ||
-          sortBy.value.isNotEmpty;
-
-  /// Verificar si hay búsqueda activa
-  bool get hasActiveSearch => searchQuery.value.isNotEmpty;
-
-  /// Información de paginación
-  String get paginationInfo {
-    if (totalItems.value == 0) return 'No hay emprendedores';
-    final start = ((currentPage.value - 1) * perPage.value) + 1;
-    final end = (start + emprendedores.length - 1).clamp(1, totalItems.value);
-    return 'Mostrando $start-$end de ${totalItems.value} emprendedores';
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    // Recargar los emprendedores con los filtros por defecto
+    fetchEmprendedores();
   }
 
-  /// Información de página
-  String get pageInfo =>
-      totalPages.value == 0 ? 'Página 1 de 1' : 'Página ${currentPage.value} de ${totalPages.value}';
-
-  bool get canLoadMore => hasMore.value && !isLoadingMore.value && !isLoading.value;
-  bool get isAnyLoading => isLoading.value || isLoadingMore.value;
-
-  void _resetPagination() {
-    currentPage.value = 1;
-    hasMore.value = true;
-    totalItems.value = 0;
-    totalPages.value = 0;
-    _paginationState = PaginationHelper.refreshPagination(_paginationState);
+  /// Refrescar la lista de emprendedores
+  Future<void> refreshEmprendedores() async {
+    debugPrint('🔄 EmprendedoresCapachicaController: Refrescando emprendedores...');
+    clearFilters(); // Opcional, para refrescar la lista completa
   }
 
-  void _updatePaginationState(dynamic response) {
-    _paginationState = PaginationHelper.updatePaginationState(
-      _paginationState,
-      response.data ?? [],
-      totalItems: response.totalItems,
-      isLoading: false,
-    );
-  }
-
-  Future<List<EmprendedorResumen>> getEmprendedoresDestacados() async {
+  /// Obtener servicios de un emprendedor específico
+  Future<List<ServicioCapachica>> getServiciosByEmprendedor(int id) async {
     try {
-      debugPrint('⭐ EmprendedoresController: Obteniendo emprendedores destacados...');
-      final destacados = await _emprendedorService.getEmprendedoresDestacados();
-      debugPrint('✅ EmprendedoresController: ${destacados.length} emprendedores destacados obtenidos');
-      return destacados;
+      isLoading.value = true;
+      error.value = '';
+      return await repository.getServiciosByEmprendedor(id);
     } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error obteniendo emprendedores destacados: $e');
+      error.value = e.toString();
       return [];
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  void navigateToDetail(EmprendedorResumen emprendedor) {
-    debugPrint('👤 EmprendedoresController: Navegando al detalle de ${emprendedor.nombre}');
-    Get.toNamed('/emprendedores/detail/${emprendedor.id}', arguments: emprendedor);
-  }
-
-  Future<Emprendedor?> getEmprendedorById(int id) async {
-    try {
-      debugPrint('👤 EmprendedoresController: Obteniendo emprendedor ID: $id');
-      final emprendedor = await _emprendedorService.getEmprendedor(id);
-      debugPrint('✅ EmprendedoresController: Emprendedor obtenido: ${emprendedor.nombre}');
-      return emprendedor;
-    } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error obteniendo emprendedor: $e');
-      return null;
+  /// Obtener lista de categorías únicas de los emprendedores cargados
+  List<String> get categoriasUnicas {
+    final categoriasSet = <String>{};
+    for (var emp in emprendedores) {
+      if (emp.tipoServicio.isNotEmpty) {
+        categoriasSet.add(emp.tipoServicio);
+      }
     }
+    return categoriasSet.toList();
   }
 
-  Future<Emprendedor?> fetchEmprendedorById(int id) async => getEmprendedorById(id);
-
-  Future<List<RelacionEmprendedor>> getEmprendedorRelaciones(int id) async {
-    try {
-      debugPrint('🔗 EmprendedoresController: Obteniendo relaciones del emprendedor ID: $id');
-      final emprendedor = await _emprendedorService.getEmprendedor(id);
-      final relaciones = emprendedor.relaciones ?? [];
-      debugPrint('✅ EmprendedoresController: ${relaciones.length} relaciones obtenidas');
-      return relaciones;
-    } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error obteniendo relaciones: $e');
-      return [];
-    }
-  }
-
-  Future<List<ServicioEmprendedor>> getEmprendedorServicios(int id) async {
-    try {
-      debugPrint('🛠️ EmprendedoresController: Obteniendo servicios del emprendedor ID: $id');
-      final emprendedor = await _emprendedorService.getEmprendedor(id);
-      final servicios = emprendedor.servicios ?? [];
-      debugPrint('✅ EmprendedoresController: ${servicios.length} servicios obtenidos');
-      return servicios;
-    } catch (e) {
-      debugPrint('❌ EmprendedoresController: Error obteniendo servicios: $e');
-      return [];
-    }
-  }
-
-  Future<void> invalidarCache() async {
-    debugPrint('🗑️ EmprendedoresController: Invalidando cache...');
-    await _emprendedorService.limpiarCache();
-  }
-
-  // Getters para UI (compatibilidad)
+  // Getters para UI
   bool get hasEmprendedores => emprendedores.isNotEmpty;
   bool get hasSearchResults => searchQuery.value.isNotEmpty;
   bool get hasCategoriaFilter => selectedCategoria.value.isNotEmpty;
-  int get totalEmprendedores => emprendedores.length;
-  int get filteredCount => emprendedores.length;
 }
