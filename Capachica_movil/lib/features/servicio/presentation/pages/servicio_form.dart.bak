@@ -1,0 +1,235 @@
+import 'package:aplicativo_capachica/features/servicio/data/models/servicio_model.dart';
+import 'package:aplicativo_capachica/features/servicio/domain/entities/servicio.dart';
+import 'package:aplicativo_capachica/features/servicio/presentation/bloc/servicio_bloc.dart';
+import 'package:aplicativo_capachica/features/servicio/presentation/bloc/servicio_event.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class ServicioForm extends StatefulWidget {
+  final ServiceEntity? servicio;
+
+  const ServicioForm({super.key, this.servicio});
+
+  @override
+  State<ServicioForm> createState() => _ServicioFormState();
+}
+
+class _ServicioFormState extends State<ServicioForm> {
+  final _formKey = GlobalKey<FormState>();
+
+  // Controladores para los campos de texto
+  late final TextEditingController _nombreController;
+  late final TextEditingController _descripcionController;
+  late final TextEditingController _precioController;
+  late final TextEditingController _capacidadController;
+  late final TextEditingController _ubicacionController;
+
+  // Estado para el toggle 'activo'
+  late bool _estadoActivo;
+
+  // Listas para manejar las relaciones seleccionadas
+  // Nota: Deberías usar Set o Map para gestionar estas relaciones de forma eficiente
+  List<CategoriaCapachica> _selectedCategorias = [];
+  List<HorarioCapachica> _currentHorarios = [];
+
+  @override
+  void initState() {
+    super.initState();
+    final isEditing = widget.servicio != null;
+    final servicio = widget.servicio;
+
+    // Inicialización de controladores
+    _nombreController = TextEditingController(text: servicio?.nombre ?? '');
+    _descripcionController = TextEditingController(text: servicio?.descripcion ?? '');
+    _precioController = TextEditingController(text: servicio?.precioReferencial ?? '');
+    _capacidadController = TextEditingController(text: servicio?.capacidad.toString() ?? '');
+    _ubicacionController = TextEditingController(text: servicio?.ubicacionReferencia ?? '');
+
+    // Inicialización de estado y relaciones
+    _estadoActivo = servicio?.estado ?? true;
+
+    if (isEditing) {
+      // Clonar las listas si estamos editando para no mutar la entidad original
+      _selectedCategorias = List.from(servicio!.categorias);
+      _currentHorarios = List.from(servicio.horarios);
+    }
+
+    // Opcional: Cargar datos auxiliares (categorías globales, etc.) si aún no están en el BLoC
+    // context.read<DatosAuxiliaresBloc>().add(LoadCategorias());
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _descripcionController.dispose();
+    _precioController.dispose();
+    _capacidadController.dispose();
+    _ubicacionController.dispose();
+    super.dispose();
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      final isEditing = widget.servicio != null;
+
+      final EmprendedorCapachica defaultEmprendedor = EmprendedorCapachica(
+        id: 1, // Usar el ID del emprendedor autenticado
+        nombre: 'Emprendedor Autenticado', tipoServicio: "",
+        descripcion: '', ubicacion: '', telefono: '',
+        email: '', paginaWeb: '', horarioAtencion: '',
+        precioRango: '', metodosPago: '', capacidadAforo: 0,
+        numeroPersonasAtiende: 0, comentariosResenas: '',
+        imagenes: '', categoria: '', certificaciones: '',
+        idiomasHablados: '', opcionesAcceso: '',
+        facilidadesDiscapacidad: true, estado: true,
+        createdAt: '', updatedAt: '', asociacionId: 0,
+
+      );
+
+      // 1. Recolectar datos del formulario
+      final newService = ServiceEntity(
+        id: widget.servicio?.id ?? 0, // Usar 0 para nuevo, ID para edición
+        nombre: _nombreController.text,
+        descripcion: _descripcionController.text,
+        precioReferencial: _precioController.text,
+        capacidad: int.parse(_capacidadController.text),
+        ubicacionReferencia: _ubicacionController.text,
+        estado: _estadoActivo,
+
+        emprendedorId: isEditing ? widget.servicio!.emprendedorId : defaultEmprendedor.id,
+        createdAt: isEditing ? widget.servicio!.createdAt : DateTime.now().toIso8601String(),
+        updatedAt: DateTime.now().toIso8601String(),
+        latitud: widget.servicio?.latitud ?? '0.0',
+        longitud: widget.servicio?.longitud ?? '0.0',
+        emprendedor: isEditing ? widget.servicio!.emprendedor : defaultEmprendedor,
+
+        categorias: _selectedCategorias,
+        horarios: _currentHorarios,
+        sliders: widget.servicio?.sliders ?? [],
+      );
+
+      if (widget.servicio == null) {
+        context.read<ServicioBloc>().add(CreateServicioEvent(newService));
+      } else {
+        context.read<ServicioBloc>().add(UpdateServicioEvent(newService));
+      }
+
+      // Cerrar la pantalla o mostrar éxito
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.servicio != null;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isEditing ? 'Editar Servicio' : 'Crear Nuevo Servicio'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              // Campo Nombre
+              TextFormField(
+                controller: _nombreController,
+                decoration: const InputDecoration(labelText: 'Nombre del Servicio'),
+                validator: (value) => value!.isEmpty ? 'Ingrese un nombre' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Campo Descripción
+              TextFormField(
+                controller: _descripcionController,
+                decoration: const InputDecoration(labelText: 'Descripción'),
+                maxLines: 3,
+                validator: (value) => value!.isEmpty ? 'Ingrese una descripción' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Campo Precio Referencial
+              TextFormField(
+                controller: _precioController,
+                decoration: const InputDecoration(labelText: 'Precio Referencial (S/.)'),
+                keyboardType: TextInputType.number,
+                validator: (value) => value!.isEmpty ? 'Ingrese un precio' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Campo Capacidad
+              TextFormField(
+                controller: _capacidadController,
+                decoration: const InputDecoration(labelText: 'Capacidad Máxima'),
+                keyboardType: TextInputType.number,
+                validator: (value) => value!.isEmpty ? 'Ingrese la capacidad' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Campo Ubicación Referencia
+              TextFormField(
+                controller: _ubicacionController,
+                decoration: const InputDecoration(labelText: 'Ubicación de Referencia'),
+                validator: (value) => value!.isEmpty ? 'Ingrese una ubicación' : null,
+              ),
+              const SizedBox(height: 24),
+
+              // --------------------------
+              // Toggle Estado Activo/Inactivo
+              // --------------------------
+              SwitchListTile(
+                title: const Text('Servicio Activo'),
+                subtitle: Text(_estadoActivo ? 'Visible para el público' : 'Temporalmente oculto'),
+                value: _estadoActivo,
+                onChanged: (bool value) {
+                  setState(() {
+                    _estadoActivo = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // --------------------------
+              // Selección de Categorías (Placeholder)
+              // --------------------------
+              Text('Categorías Seleccionadas:', style: Theme.of(context).textTheme.titleMedium),
+              // Aquí iría un MultiSelectChip o un diálogo modal que interactúa con un BLoC
+              // para elegir de la lista global de categorías y actualiza _selectedCategorias
+              const Text('Añadir Componente de Selección de Categorías aquí.'),
+              const SizedBox(height: 24),
+
+              // --------------------------
+              // Edición de Horarios (Placeholder)
+              // --------------------------
+              Text('Horarios de Atención:', style: Theme.of(context).textTheme.titleMedium),
+              // Aquí iría una lista editable de HorarioCapachica que actualiza _currentHorarios
+              const Text('Añadir Componente de Edición de Horarios aquí.'),
+              const SizedBox(height: 32),
+
+              // Botón Final
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  child: Text(
+                    isEditing ? 'Guardar Cambios' : 'Crear Servicio',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
